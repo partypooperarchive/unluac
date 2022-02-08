@@ -319,8 +319,13 @@ class LFunctionType53 extends LFunctionType {
     s.lenParameter = 0xFF & buffer.get();
     s.vararg = 0xFF & buffer.get();
     s.maximumStackSize = 0xFF & buffer.get();
-    parse_code(buffer, header, s);
-    s.constants = header.constant.parseList(buffer, header);
+    if (header.version.isMua()) {
+      s.constants = header.constant.parseList(buffer, header);
+      parse_code(buffer, header, s);
+    } else {
+      parse_code(buffer, header, s);
+      s.constants = header.constant.parseList(buffer, header);
+    }
     parse_upvalues(buffer, header, s);
     s.functions = header.function.parseList(buffer, header);
     parse_debug(buffer, header, s);
@@ -346,8 +351,13 @@ class LFunctionType53 extends LFunctionType {
     out.write(object.numParams);
     out.write(object.vararg);
     out.write(object.maximumStackSize);
-    write_code(out, header, object);
-    header.constant.writeList(out, header, object.constants);
+    if (header.version.isMua()) {
+      header.constant.writeList(out, header, object.constants);
+      write_code(out, header, object);
+    } else {
+      write_code(out, header, object);
+      header.constant.writeList(out, header, object.constants);
+    }
     write_upvalues(out, header, object);
     header.function.writeList(out, header, object.functions);
     write_debug(out, header, object);

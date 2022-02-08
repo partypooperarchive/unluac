@@ -83,7 +83,7 @@ abstract public class LHeaderType extends BObjectType<LHeader> {
   protected void parse_format(ByteBuffer buffer, BHeader header, LHeaderParseState s) {
     // 1 byte Lua "format"
     int format = 0xFF & buffer.get();
-    if(format != 0) {
+    if(format != 0 && format != 1) {
       throw new IllegalStateException("The input chunk reports a non-standard lua format: " + format);
     }
     s.format = format;
@@ -146,7 +146,12 @@ abstract public class LHeaderType extends BObjectType<LHeader> {
   
   protected void parse_size_t_size(ByteBuffer buffer, BHeader header, LHeaderParseState s) {
     // 1 byte sizeT size
-    int sizeTSize = 0xFF & buffer.get();
+    int sizeTSize = 4; // Default size for miHoYo scripts
+
+    // miHoYo's scripts (both Mua and Lua) don't have this field
+    if (s.format == 0)
+      sizeTSize = 0xFF & buffer.get();
+
     if(header.debug) {
       System.out.println("-- size_t size: " + sizeTSize);
     }
@@ -154,7 +159,9 @@ abstract public class LHeaderType extends BObjectType<LHeader> {
   }
   
   protected void write_size_t_size(OutputStream out, BHeader header, LHeader object) throws IOException {
-    out.write(object.sizeT.getSize());
+    // We don't need to write size_t for miHoYo's scripts (both Lua and Mua)
+    if (object.format == 0)
+      out.write(object.sizeT.getSize());
   }
   
   protected void parse_instruction_size(ByteBuffer buffer, BHeader header, LHeaderParseState s) {
@@ -416,6 +423,11 @@ class LHeaderType53 extends LHeaderType {
   @Override
   protected void parse_main(ByteBuffer buffer, BHeader header, LHeaderParseState s) {
     parse_format(buffer, header, s);
+    if (header.version.isMua()) {
+      // Skip excess integer as original code does
+      byte skip[] = new byte[4];
+      buffer.get(skip);
+    }
     parse_tail(buffer, header, s);
     parse_int_size(buffer, header, s);
     parse_size_t_size(buffer, header, s);
@@ -423,6 +435,11 @@ class LHeaderType53 extends LHeaderType {
     parse_integer_size(buffer, header, s);
     parse_float_size(buffer, header, s);
     parse_number_format_53(buffer, header, s);
+    if (header.version.isMua()) {
+      // Another magic number, same as previous one
+      byte skip[] = new byte[4];
+      buffer.get(skip);
+    }
   }
   
   @Override
@@ -441,6 +458,11 @@ class LHeaderType53 extends LHeaderType {
   @Override
   public void write(OutputStream out, BHeader header, LHeader object) throws IOException {
     write_format(out, header, object);
+    if (header.version.isMua()) {
+      // TODO: original code skips this value, but it would still be a good idea to figure out what this is
+      // I reused value from one of the scripts
+      header.linteger.write(out, header, header.linteger.create(6400));
+    }
     write_tail(out, header, object);
     write_int_size(out, header, object);
     write_size_t_size(out, header, object);
@@ -449,6 +471,10 @@ class LHeaderType53 extends LHeaderType {
     out.write(header.lfloat.size);
     header.linteger.write(out, header, header.linteger.create(TEST_INTEGER));
     header.lfloat.write(out, header, header.lfloat.create(TEST_FLOAT));
+    if (header.version.isMua()) {
+      // TODO: same stuff here
+      header.linteger.write(out, header, header.linteger.create(6400));
+    }
   }
   
 }

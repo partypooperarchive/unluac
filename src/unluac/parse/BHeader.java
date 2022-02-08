@@ -18,8 +18,12 @@ import unluac.decompile.OpcodeMap;
 
 public class BHeader {
 
-  private static final byte[] signature = {
+  private static final byte[] signatureLua = {
     0x1B, 0x4C, 0x75, 0x61,
+  };
+  
+  private static final byte[] signatureMua = {
+    0x1B, 0x4D, 0x75, 0x61,
   };
   
   public final boolean debug = false;
@@ -73,18 +77,39 @@ public class BHeader {
   
   public BHeader(ByteBuffer buffer, Configuration config) {
     this.config = config;
+
+    boolean isMua = true;
+    boolean isLua = true;
+
+    byte fileSignature[] = new byte[4];
+    for(int i = 0; i < signatureLua.length; i++) {
+      fileSignature[i] = buffer.get();
+    }
+
     // 4 byte Lua signature
-    for(int i = 0; i < signature.length; i++) {
-      if(buffer.get() != signature[i]) {
-        throw new IllegalStateException("The input file does not have the signature of a valid Lua file.");
+    for(int i = 0; i < signatureLua.length; i++) {
+      if(fileSignature[i] != signatureLua[i]) {
+        isLua = false;
+        break;
+      }
+    }
+
+    // 4 byte Mua signature
+    for(int i = 0; i < signatureMua.length; i++) {
+      if(fileSignature[i] != signatureMua[i]) {
+        isMua = false;
+        break;
       }
     }
     
+    if (!isLua && !isMua)
+      throw new IllegalStateException("The input file does not have the signature of a valid Lua or Mua file.");
+
     int versionNumber = 0xFF & buffer.get();
     int major = versionNumber >> 4;
     int minor = versionNumber & 0x0F;
     
-    version = Version.getVersion(major, minor);
+    version = Version.getVersion(major, minor, isMua);
     if(version == null) {
       throw new IllegalStateException("The input chunk's Lua version is " + major + "." + minor + "; unluac can only handle Lua 5.0 - Lua 5.4.");
     }
@@ -158,10 +183,13 @@ public class BHeader {
   }
   
   public void write(OutputStream out) throws IOException {
-    out.write(signature);
     int major = version.getVersionMajor();
     int minor = version.getVersionMinor();
     int versionNumber = (major << 4) | minor;
+    if (version.isMua())
+      out.write(signatureMua);
+    else
+      out.write(signatureLua);
     out.write(versionNumber);
     version.getLHeaderType().write(out, this, lheader);
     if(version.useupvaluecountinheader.get()) {

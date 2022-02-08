@@ -752,11 +752,14 @@ public class Assembler {
     
     int major;
     int minor;
+    boolean isMua = false; // TODO: figure out how to supply that!
     String[] parts = tok.split("\\.");
     if(parts.length == 2) {
       try {
         major = Integer.valueOf(parts[0]);
-        minor = Integer.valueOf(parts[1]);
+        minor = Integer.valueOf(parts[1].substring(0,1)); // TODO: this may cause a problem with Lua 5.10... in the unforeseeable future
+        if (parts[1].length() == 2 && parts[1].charAt(1) == 'M')
+          isMua = true;
       } catch(NumberFormatException e) {
         throw new AssemblerException("Unsupported version " + tok);
       }
@@ -767,7 +770,7 @@ public class Assembler {
       throw new AssemblerException("Unsupported version " + tok);
     }
     
-    version = Version.getVersion(major, minor);
+    version = Version.getVersion(major, minor, isMua);
     
     if(version == null) {
       throw new AssemblerException("Unsupported version " + tok);

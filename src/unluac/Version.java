@@ -13,8 +13,8 @@ import unluac.parse.LUpvalueType;
 
 public class Version {
 
-  public static Version getVersion(int major, int minor) {
-    return new Version(major, minor);
+  public static Version getVersion(int major, int minor, boolean isMua) {
+    return new Version(major, minor, isMua);
   }
   
   public static class Setting<T> {
@@ -120,6 +120,7 @@ public class Version {
   
   private final int major;
   private final int minor;
+  private final boolean isMua;
   private final String name;
   private final Set<String> reservedWords;
   private final LHeaderType lheadertype;
@@ -130,7 +131,7 @@ public class Version {
   private final OpcodeMap opcodemap;
   private final Op defaultop;
   
-  private Version(int major, int minor) {
+  private Version(int major, int minor, boolean isMua) {
     HeaderType headertype;
     StringType stringtype;
     ConstantType constanttype;
@@ -139,7 +140,8 @@ public class Version {
     OpcodeMapType opcodemap;
     this.major = major;
     this.minor = minor;
-    name = major + "." + minor;
+    this.isMua = isMua;
+    name = major + "." + minor + (isMua ? "M" : "");
     if(major == 5 && minor >= 0 && minor <= 4) {
       switch(minor) {
         case 0:
@@ -318,6 +320,10 @@ public class Version {
   
   public int getVersionMinor() {
     return minor;
+  }
+
+  public boolean isMua() {
+    return isMua;
   }
   
   public String getName() {
